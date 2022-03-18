@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import ExpressRedisCache from "express-redis-cache";
 import {
   getOrgs,
   getProject,
@@ -48,15 +49,20 @@ async function returnMaterials(req, res) {
   console.log("materials returned!");
   res.json(resultObj);
 }
+
+const cache = ExpressRedisCache({
+  host: process.env.CACHE_HOST,
+  port: +process.env.CACHE_PORT,
+})
 app.use(cors());
 
-app.get("/orgs/", returnOrgs);
+app.get("/orgs/", cache.route(), returnOrgs);
 
-app.get("/project/", returnProject);
+app.get("/project/", cache.route(), returnProject);
 
-app.get("/location/", updateLocation);
+app.get("/location/", cache.route(), updateLocation);
 
-app.get("/material/", returnMaterials);
+app.get("/material/", cache.route(), returnMaterials);
 
 app.listen(port, () => {
   console.log(`Express app listening at http://localhost:${port}`);

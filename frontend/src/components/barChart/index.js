@@ -1,6 +1,6 @@
 import * as d3 from "d3";
-import {useRef, React } from "react";
-
+import { useRef, useEffect, useState, React } from "react";
+import { isEmpty } from "lodash-es";
 
 // Copyright 2021 Observable, Inc.
 // Released under the ISC license.
@@ -26,85 +26,122 @@ import {useRef, React } from "react";
 //   color = "currentColor" // bar fill color
 // } = {}) {
 
-export function BarChart() {
-  const d3Container = useRef(null)
+const getNodeById = (svg, id) => {
+  if (svg.select("#" + id).empty()) {
+    svg.append("g").attr("id", id);
+  }
+  return svg.select("#" + id);
+};
 
-  const svg = d3.select(d3Container.current);
+export function BarChart({ data }) {
+  const [plotData, setPlotData] = useState({});
+  const d3Container = useRef(null);
+  // default values
+  const marginTop = 20; // the top margin, in pixels
+  const marginRight = 0; // the right margin, in pixels
+  const marginBottom = 100; // the bottom margin, in pixels
+  const marginLeft = 40; // the left margin, in pixels
+  const width = 640; // the outer width of the chart, in pixels
+  const height = 500; // the outer height of the chart, in pixels
+  const xRange = [marginLeft, width - marginRight]; // [left, right]
+  const yType = d3.scaleLinear; // y-scale type
+  //   yDomain, // [ymin, ymax]
+  const yRange = [height - marginBottom, marginTop]; // [bottom, top]
+  const xPadding = 0.1; // amount of x-range to reserve to separate bars
+  //   yFormat, // a format specifier string for the y-axis
+  //   yLabel, // a label for the y-axis
+  const color = "green"; // bar fill color
 
-  // // Compute values.
-  // const X = d3.map(data, x);
-  // const Y = d3.map(data, y);
+  useEffect(() => {
+    if (!isEmpty(data)) {
+      setPlotData(data);
+    }
+  }, [data]);
 
-  // // Compute default domains, and unique the x-domain.
-  // if (xDomain === undefined) xDomain = X;
-  // if (yDomain === undefined) yDomain = [0, d3.max(Y)];
-  // xDomain = new d3.InternSet(xDomain);
+  useEffect(() => {
+    if (!isEmpty(data) && d3Container.current) {
+      const svg = d3.select(d3Container.current);
+      // Compute values.
+      const X = data.x; //d3.map(data, x);
+      const Y = data.y; //d3.map(data, y);
 
-  // // Omit any data not present in the x-domain.
-  // const I = d3.range(X.length).filter(i => xDomain.has(X[i]));
+      // Compute default domains, and unique the x-domain.
+      // if (xDomain === undefined) xDomain = X;
+      // if (yDomain === undefined) yDomain = [0, d3.max(Y)];
+      let xDomain = X;
+      const yDomain = [0, d3.max(Y)];
 
-  // // Construct scales, axes, and formats.
-  // const xScale = d3.scaleBand(xDomain, xRange).padding(xPadding);
-  // const yScale = yType(yDomain, yRange);
-  // const xAxis = d3.axisBottom(xScale).tickSizeOuter(0);
-  // const yAxis = d3.axisLeft(yScale).ticks(height / 40, yFormat);
+      xDomain = new d3.InternSet(xDomain);
 
-  // // Compute titles.
-  // if (title === undefined) {
-  //   const formatValue = yScale.tickFormat(100, yFormat);
-  //   title = i => `${X[i]}\n${formatValue(Y[i])}`;
-  // } else {
-  //   const O = d3.map(data, d => d);
-  //   const T = title;
-  //   title = i => T(O[i], i, data);
-  // }
+      // Omit any data not present in the x-domain.
+      const I = d3.range(X.length).filter((i) => xDomain.has(X[i]));
 
-  // const svg = d3.create("svg")
-  //     .attr("width", width)
-  //     .attr("height", height)
-  //     .attr("viewBox", [0, 0, width, height])
-  //     .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
+      // Construct scales, axes, and formats.
+      const xScale = d3.scaleBand(xDomain, xRange).padding(xPadding);
+      const yScale = yType(yDomain, yRange);
+      const xAxis = d3.axisBottom(xScale).tickSizeOuter(0);
+      const yAxis = d3.axisLeft(yScale).ticks(height / 40); //, yFormat);
 
-  // svg.append("g")
-  //     .attr("transform", `translate(${marginLeft},0)`)
-  //     .call(yAxis)
-  //     .call(g => g.select(".domain").remove())
-  //     .call(g => g.selectAll(".tick line").clone()
-  //         .attr("x2", width - marginLeft - marginRight)
-  //         .attr("stroke-opacity", 0.1))
-  //     .call(g => g.append("text")
-  //         .attr("x", -marginLeft)
-  //         .attr("y", 10)
-  //         .attr("fill", "currentColor")
-  //         .attr("text-anchor", "start")
-  //         .text(yLabel));
+      const axes = getNodeById(svg, "axes");
 
-  // const bar = svg.append("g")
-  //     .attr("fill", color)
-  //   .selectAll("rect")
-  //   .data(I)
-  //   .join("rect")
-  //     .attr("x", i => xScale(X[i]))
-  //     .attr("y", i => yScale(Y[i]))
-  //     .attr("height", i => yScale(0) - yScale(Y[i]))
-  //     .attr("width", xScale.bandwidth());
+      axes
+        .attr("transform", `translate(${marginLeft},0)`)
+        .call(yAxis)
+        .call((g) => g.select(".domain").remove())
+        .call((g) =>
+          g
+            .selectAll(".tick line")
+            .clone()
+            .attr("x2", width - marginLeft - marginRight)
+            .attr("stroke-opacity", 0.1)
+        )
+        .call((g) =>
+          g
+            .append("text")
+            .attr("x", -marginLeft)
+            .attr("y", 10)
+            .attr("fill", "currentColor")
+            .attr("text-anchor", "start")
+        );
+      //.text(yLabel));
 
-  // if (title) bar.append("title")
-  //     .text(title);
+      const bars = getNodeById(svg, "bars");
 
-  // svg.append("g")
-  //     .attr("transform", `translate(0,${height - marginBottom})`)
-  //     .call(xAxis);
+      bars
+        .attr("fill", color)
+        .selectAll("rect")
+        .data(I)
+        .join("rect")
+        .attr("x", (i) => xScale(X[i]))
+        .attr("y", (i) => yScale(Y[i]))
+        .attr("height", (i) => yScale(0) - yScale(Y[i]))
+        .attr("width", xScale.bandwidth());
+
+      const xAxisNode = getNodeById(svg, "xAxisNode");
+
+      xAxisNode
+        .attr("transform", `translate(0,${height - marginBottom})`)
+        .call(xAxis)
+        .selectAll("text")
+        .attr("y", 0)
+        .attr("x", 9)
+        .attr("dy", ".35em")
+        .attr("transform", "rotate(90)")
+        .style("text-anchor", "start");
+    }
+  }, [data]);
+
+  const viewboxString = `0 0 ${width} ${height}`;
 
   return (
     <div>
       <svg
         ref={d3Container}
-        viewBox="0 0 {width} {height}"
+        viewBox={viewboxString}
         id="barPlot"
-        style={{Visibility: "visible"}}
+        style={{ Visibility: "visible" }}
         width="100%"
       />
     </div>
-  )
+  );
 }
