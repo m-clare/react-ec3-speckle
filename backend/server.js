@@ -30,7 +30,7 @@ async function returnProject(req, res) {
   res.json(data);
 }
 
-async function returnMaterial(req, res) {
+async function returnMaterials(req, res) {
   const qs = req.originalUrl.substring(1).split("?")[1];
   const keyValuePairs = qs.split("&");
   const dictionary = keyValuePairs
@@ -40,22 +40,13 @@ async function returnMaterial(req, res) {
       return { [key]: value };
     })
     .reduce((acc, current) => ({ ...acc, ...current }), {});
-  const data = await getMaterial(dictionary["project"], dictionary["material"]);
-  // filter data a bit...
-  const returnData = data.map((d) => ({
-    name: d.name,
-    description: d.description,
-    best_practice_value: +d.best_practice.split(" ")[0],
-    best_practice_value_unit: d.best_practice.split(" ")[1],
-    density: +d.density.split(" ")[0],
-    density_unit: d.density.split(" ")[1],
-    gwp_z: d.gwp_z,
-    gwp_per_kg: +d.gwp_per_kg.split(" ")[0],
-    gwp_per_kg_unit: d.gwp_per_kg.split(" ")[1],
-    gwp_per_category_declared_unit: d.gwp_per_category_declared_unit
-  }));
-  console.log("material returned!");
-  res.json(returnData);
+  //TODO: Remove hardcoding and deal with queryString
+  const materialList = ["Concrete", "Steel", "Brick", "Masonry", "Wood"]
+  const asyncFunctions = materialList.map((d) => getMaterial(dictionary["project"], d))
+  const result = await Promise.all(asyncFunctions)
+  const resultObj = result.reduce((acc, curr) => ({...acc, ...curr}), {})
+  console.log("materials returned!");
+  res.json(resultObj);
 }
 app.use(cors());
 
@@ -65,7 +56,7 @@ app.get("/project/", returnProject);
 
 app.get("/location/", updateLocation);
 
-app.get("/material/", returnMaterial);
+app.get("/material/", returnMaterials);
 
 app.listen(port, () => {
   console.log(`Express app listening at http://localhost:${port}`);

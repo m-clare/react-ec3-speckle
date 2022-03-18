@@ -25,8 +25,12 @@ const GET_SPECKLEOBJECTS = gql`
   }
 `;
 
+function isEmpty(object) {
+  return JSON.stringify(object) === "{}"
+}
+
 export default function Landing() {
-  const [epds, setEPDs] = useState({});
+  const [materialInfo, setMaterialInfo] = useState({});
   const [projectData, setProjectData] = useState({});
   const [speckleObjects, setSpeckleObjects] = useState({});
   const { loading, error, data } = useQuery(GET_SPECKLEOBJECTS);
@@ -48,16 +52,23 @@ export default function Landing() {
   }, [loading]);
 
   useEffect(() => {
-    if (!loading && !(JSON.stringify(speckleObjects) === "{}")) {
+    console.log(isEmpty(projectData))
+    console.log(isEmpty(speckleObjects))
+    if (!isEmpty(projectData) && !isEmpty(speckleObjects)) {
       async function getAllMaterials(project, materials) {
-        const asyncFunctions = materials.map((d) => getMaterial(projectData.id, d))
-        const results = await Promise.all(asyncFunctions)
+        const results = await getMaterial(projectData.id)
+        setMaterialInfo(results)
+        console.log(results)
+        return results
+        // const results = await Promise.all(asyncFunctions)
       }
-      const materialSet = Array.from(new Set(speckleObjects.map(d => d.Material)))
-      const data = getAllMaterials(projectData.id, materialSet)
-      console.log(data)
+      // Brick does not work unless in Beta
+      const materialSet = Array.from(new Set(speckleObjects.map(d => d.Material))).filter(d => d !== "Brick")
+      getAllMaterials(projectData.id, materialSet)
+      // const data = getAllMaterials(projectData.id, materialSet)
+      // console.log(data)
     }
-  }, [speckleObjects])
+  }, [speckleObjects, projectData])
 
   return (
     <Box>

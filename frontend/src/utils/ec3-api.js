@@ -17,8 +17,8 @@ function getProject() {
     .catch((error) => console.error(`Error: ${error}`));
 }
 
-function getMaterial(project, materialName) {
-  const qs = "project=" + project + "&material=" + materialName;
+function getMaterial(project) {
+  const qs = "project=" + project
   const url = `${process.env.REACT_APP_NODE_SERVER}/material?` + qs;
   return axios
     .get(url)

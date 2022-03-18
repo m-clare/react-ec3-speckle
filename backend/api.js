@@ -80,13 +80,25 @@ const getOrgs = async () => {
 
 const getMaterial = async (projectID, materialName) => {
   const hashTable = {
-    "Steel": "de95ab7d6ab5488bb87d20177f942d2a",
-    "Concrete": "b03dba1dca5b49acb1a5aa4daab546b4",
-    "Masonry": "4ec837a26a0a493786442296f4cb2730",
-    "Brick": "41ff8f44d89c4cdbbcdf2671a35286f5",
-    "Wood": "e4aa9c1808ad41b6944db88e51d877ba"
+    Brick: "4ec837a26a0a493786442296f4cb2730",
+    Steel: "de95ab7d6ab5488bb87d20177f942d2a",
+    Concrete: "b03dba1dca5b49acb1a5aa4daab546b4",
+    Masonry: "4ec837a26a0a493786442296f4cb2730",
+    Wood: "e4aa9c1808ad41b6944db88e51d877ba",
+  };
+  let url =
+    baseURL +
+    "/materials?" +
+    "category=" +
+    hashTable[materialName] +
+    "&project_id=" +
+    projectID +
+    "&plant__distance__lt=1000%20mi" +
+    "&sort_by=+plant__distance" +
+    "&page_size=50";
+  if (materialName === "Concrete") {
+    url= url + "&concrete_compressive_strength_28d=5000%20psi"
   }
-  const url = baseURL + "/materials?" + "category=" + hashTable[materialName] + "&project_id=" + projectID + "&plant__distance__lt=1000%20mi&sort_by=+plant__distance"
   return await fetch(url, {
     method: "GET",
     headers: headers,
@@ -103,6 +115,22 @@ const getMaterial = async (projectID, materialName) => {
       }
     })
     .then((returnedResponse) => returnedResponse.json())
+    .then((rawData) => {
+      const data = rawData.map((d) => ({
+        name: d.name,
+        description: d.description,
+        best_practice_value: +d.best_practice.split(" ")[0],
+        best_practice_value_unit: d.best_practice.split(" ")[1],
+        density: +d.density.split(" ")[0],
+        density_unit: d.density.split(" ")[1],
+        gwp_z: d.gwp_z,
+        gwp_per_kg: +d.gwp_per_kg.split(" ")[0],
+        gwp_per_kg_unit: d.gwp_per_kg.split(" ")[1],
+        gwp_per_category_declared_unit: d.gwp_per_category_declared_unit,
+        plant_or_group: d.plant_or_group
+      }));
+      return {[materialName]: data}
+    })
     .catch((error) => {
       console.log(error);
     });
