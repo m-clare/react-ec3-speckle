@@ -138,11 +138,11 @@ const getMaterial = async (materialName, distance) => {
   // TODO: should be ammended to provide more granular material selection
   const distanceRadius = distance ? distance : 1000; // distance in miles
   const hashTable = {
-    Brick: "4ec837a26a0a493786442296f4cb2730",
-    Steel: "de95ab7d6ab5488bb87d20177f942d2a",
-    Concrete: "b03dba1dca5b49acb1a5aa4daab546b4",
-    CMU: "4ec837a26a0a493786442296f4cb2730",
-    Wood: "e4aa9c1808ad41b6944db88e51d877ba",
+    brick: "4ec837a26a0a493786442296f4cb2730",
+    steel: "de95ab7d6ab5488bb87d20177f942d2a",
+    concrete: "b03dba1dca5b49acb1a5aa4daab546b4",
+    cmu: "4ec837a26a0a493786442296f4cb2730",
+    wood: "e4aa9c1808ad41b6944db88e51d877ba",
   };
   let url =
     baseURL +

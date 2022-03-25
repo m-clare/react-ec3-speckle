@@ -26,6 +26,7 @@ async function returnMaterials(req, res) {
     .map((d) => {
       const key = d.split("=")[0];
       let value = d.split("=")[1];
+      value = decodeURIComponent(value).replace(/\+/g, " ")
       if (key === "materials") {
         value = value.split(",").length > 1 ? value.split(",") : [value];
       }
@@ -36,7 +37,8 @@ async function returnMaterials(req, res) {
   // query string *should* contain a location, otherwise caching will not properly reflect location
   const project = await getProject();
   // Check address and update if needed (rough substring match used)
-  if (project.address.indexOf(decodeURI(dictionary["location"])) === -1) {
+  const lowercaseAddress = project.address.toString().toLowerCase()
+  if (lowercaseAddress.indexOf(dictionary["location"]) === -1) {
     const updatedProject = await changeProjectLocation(dictionary["location"]);
   }
   const distance = dictionary["distance"]

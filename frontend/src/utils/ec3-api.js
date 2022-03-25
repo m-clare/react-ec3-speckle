@@ -1,14 +1,5 @@
 import axios from "axios";
 
-function getOrgs() {
-  const url = `${process.env.REACT_APP_NODE_SERVER}/orgs`;
-  console.log(url);
-  return axios
-    .get(url)
-    .then((response) => response.data)
-    .catch((error) => console.error(`Error: ${error}`));
-}
-
 function getProject() {
   const url = `${process.env.REACT_APP_NODE_SERVER}/project`;
   return axios
@@ -17,12 +8,15 @@ function getProject() {
     .catch((error) => console.error(`Error: ${error}`));
 }
 
-function getMaterial(project) {
-  const qs = "project=" + project
+function getMaterial(materials, location) {
+  const searchParams = new URLSearchParams()
+  searchParams.set("location", location)
+  searchParams.set("materials", materials.sort().join())
+  const qs = searchParams.toString().toLowerCase()
   const url = `${process.env.REACT_APP_NODE_SERVER}/material?` + qs;
   return axios
     .get(url)
     .then((response) => response.data)
     .catch((error) => console.error(`Error: ${error}`));
 }
-export { getOrgs, getProject, getMaterial };
+export { getProject, getMaterial };
