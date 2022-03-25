@@ -4,14 +4,50 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const baseURL = `https://etl-api.cqd.io/api`;
-const headers = {
-  Authorization: `Bearer ${process.env.EC3_TOKEN}`,
-  Accept: "application/json",
-  "Content-Type": "application/json",
+
+// EC3 username and password must be provided at a minimum
+const EC3_username = process.env.EC3_USERNAME;
+const EC3_password = process.env.EC3_PASSWORD;
+
+const getBearerToken = (username, password) => {
+  return fetch(baseURL + "/rest-auth/login", {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ username: username, password: password }),
+  })
+    .then((response) => {
+      if (response.ok) {
+        return response;
+      } else if (response.status >= 400 && response.status < 600) {
+        throw new Error("Bad response from server");
+      } else if (typeof response === "undefined") {
+        throw new Error("Response was undefined");
+      } else {
+        throw new Error("Unknown error in fetch response.");
+      }
+    })
+    .then((returnedResponse) => returnedResponse.json())
+    .then((responseJson) => responseJson.key) // return only key from object
+    .catch((error) => {
+      console.log(error);
+    });
 };
 
-const getProject = async () => {
-  return await fetch(baseURL + "/projects/" + process.env.BUILDING_ID, {
+const getHeaders = async () => {
+  // Either provide EC3 Token in .env, or provide username and password
+  const token = process.env.EC3_TOKEN
+    ? process.env.EC3_TOKEN
+    : await getBearerToken(process.env.EC3_USERNAME, process.env.EC3_PASSWORD);
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  };
+};
+
+const getProjectID = async (projectName) => {
+  const headers = await getHeaders();
+  return await fetch(baseURL + `/projects?name__like=${projectName}`, {
     method: "GET",
     headers: headers,
   })
@@ -27,20 +63,24 @@ const getProject = async () => {
       }
     })
     .then((returnedResponse) => returnedResponse.json())
+    .then((responseJSON) => {
+      return responseJSON[0].id;
+    })
     .catch((error) => {
       console.log(error);
     });
 };
-const changeProjectLocation = async (locationString) => {
-  console.log(locationString);
-  console.log(decodeURIComponent(locationString));
-  return await fetch(baseURL + "/projects/" + process.env.BUILDING_ID, {
-    method: "PUT",
+
+const getProject = async () => {
+  const headers = await getHeaders();
+  // provide building ID in .env or provide building name for EC3 match
+  // If multiple matches in EC3, returns first building
+  const projectID = process.env.BUILDING_ID
+    ? process.env.BUILDING_ID
+    : await getProjectID(process.env.BUILDING_NAME);
+  return await fetch(baseURL + "/projects/" + projectID, {
+    method: "GET",
     headers: headers,
-    body: JSON.stringify({
-      name: process.env.BUILDING_NAME,
-      address: locationString,
-    }),
   })
     .then((response) => {
       if (response.ok) {
@@ -53,14 +93,24 @@ const changeProjectLocation = async (locationString) => {
         throw new Error("Unknown error in fetch response.");
       }
     })
-    .then((returnedResponse) => returnedResponse.json())
+    .then((returnedResponse) => {
+      return returnedResponse.json();
+    })
     .catch((error) => {
       console.log(error);
     });
 };
 
-const getOrgs = async () => {
-  return await fetch(baseURL + "/orgs", { method: "GET", headers: headers })
+const changeProjectLocation = async (locationString) => {
+  const headers = await getHeaders();
+  const projectInfo = await getProject();
+  const location = decodeURI(locationString);
+  const body = JSON.stringify({ name: projectInfo.name, address: location });
+  return await fetch(baseURL + "/projects/" + projectInfo.id, {
+    method: "PUT",
+    headers: headers,
+    body: body,
+  })
     .then((response) => {
       if (response.ok) {
         return response;
@@ -72,13 +122,21 @@ const getOrgs = async () => {
         throw new Error("Unknown error in fetch response.");
       }
     })
-    .then((returnedResponse) => returnedResponse.json())
+    .then((returnedResponse) => {
+      return returnedResponse.json();
+    })
     .catch((error) => {
       console.log(error);
     });
 };
 
-const getMaterial = async (projectID, materialName) => {
+const getMaterial = async (materialName, distance) => {
+  const headers = await getHeaders();
+  const projectID = process.env.BUILDING_ID
+    ? process.env.BUILDING_ID
+    : await getProjectID(process.env.BUILDING_NAME);
+  // TODO: should be ammended to provide more granular material selection
+  const distanceRadius = distance ? distance : 1000; // distance in miles
   const hashTable = {
     Brick: "4ec837a26a0a493786442296f4cb2730",
     Steel: "de95ab7d6ab5488bb87d20177f942d2a",
@@ -93,11 +151,12 @@ const getMaterial = async (projectID, materialName) => {
     hashTable[materialName] +
     "&project_id=" +
     projectID +
-    "&plant__distance__lt=1000%20mi" +
+    `&plant__distance__lt=${distanceRadius}%20mi` +
     "&sort_by=+plant__distance" +
     "&page_size=50";
+  // Filter by reasonable concrete strength
   if (materialName === "Concrete") {
-    url= url + "&concrete_compressive_strength_28d=5000%20psi"
+    url = url + "&concrete_compressive_strength_28d=5000%20psi";
   }
   return await fetch(url, {
     method: "GET",
@@ -127,13 +186,13 @@ const getMaterial = async (projectID, materialName) => {
         gwp_per_kg: +d.gwp_per_kg.split(" ")[0],
         gwp_per_kg_unit: d.gwp_per_kg.split(" ")[1],
         gwp_per_category_declared_unit: d.gwp_per_category_declared_unit,
-        plant_or_group: d.plant_or_group
+        plant_or_group: d.plant_or_group,
       }));
-      return {[materialName]: data}
+      return { [materialName]: data };
     })
     .catch((error) => {
       console.log(error);
     });
 };
 
-export { getOrgs, changeProjectLocation, getProject, getMaterial };
+export { changeProjectLocation, getProject, getMaterial };

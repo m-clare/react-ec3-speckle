@@ -2,32 +2,20 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import ExpressRedisCache from "express-redis-cache";
-import {
-  getOrgs,
-  getProject,
-  changeProjectLocation,
-  getMaterial,
-} from "./api.js";
+import { getProject, changeProjectLocation, getMaterial } from "./api.js";
 dotenv.config();
 
 const app = express();
 const port = +process.env.EXPRESS_PORT;
 
-async function returnOrgs(req, res) {
-  const data = await getOrgs();
-  res.json(data);
-}
-
 async function updateLocation(req, res) {
   const qs = req.originalUrl.substring(1).split("?")[1];
-  console.log(qs);
   const data = await changeProjectLocation(qs);
   res.json(data);
 }
 
 async function returnProject(req, res) {
   const data = await getProject();
-  console.log("project returned!");
   res.json(data);
 }
 
@@ -37,26 +25,33 @@ async function returnMaterials(req, res) {
   const dictionary = keyValuePairs
     .map((d) => {
       const key = d.split("=")[0];
-      const value = d.split("=")[1];
+      let value = d.split("=")[1];
+      if (key === "materials") {
+        value = value.split(",").length > 1 ? value.split(",") : [value];
+      }
       return { [key]: value };
     })
     .reduce((acc, current) => ({ ...acc, ...current }), {});
-  //TODO: Remove hardcoding and deal with queryString
-  const materialList = ["Concrete", "Steel", "Brick", "Masonry", "Wood"]
-  const asyncFunctions = materialList.map((d) => getMaterial(dictionary["project"], d))
-  const result = await Promise.all(asyncFunctions)
-  const resultObj = result.reduce((acc, curr) => ({...acc, ...curr}), {})
-  console.log("materials returned!");
+  // NOTE: Set location if new one is provided in querystring and does not match current location
+  // query string *should* contain a location, otherwise caching will not properly reflect location
+  const project = await getProject();
+  // Check address and update if needed (rough substring match used)
+  if (project.address.indexOf(decodeURI(dictionary["location"])) === -1) {
+    const updatedProject = await changeProjectLocation(dictionary["location"]);
+  }
+  const distance = dictionary["distance"]
+  const asyncFunctions = dictionary["materials"].map((d) => getMaterial(d, distance));
+  const result = await Promise.all(asyncFunctions);
+  const resultObj = result.reduce((acc, curr) => ({ ...acc, ...curr }), {});
   res.json(resultObj);
 }
 
 const cache = ExpressRedisCache({
   host: process.env.CACHE_HOST,
   port: +process.env.CACHE_PORT,
-})
-app.use(cors());
+});
 
-app.get("/orgs/", cache.route(), returnOrgs);
+app.use(cors());
 
 app.get("/project/", cache.route(), returnProject);
 
