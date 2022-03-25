@@ -42,7 +42,7 @@ export default function Landing() {
   const [materialInfo, setMaterialInfo] = useState({});
   const [projectData, setProjectData] = useState({});
   const [speckleObjects, setSpeckleObjects] = useState({});
-  const [activeMaterial, setActiveMaterial] = useState("Concrete");
+  const [activeMaterial, setActiveMaterial] = useState("concrete");
   const [plotData, setPlotData] = useState({});
   const { loading, error, data } = useQuery(GET_SPECKLEOBJECTS);
 
@@ -53,7 +53,7 @@ export default function Landing() {
   useEffect(() => {
     if (!isEmpty(materialInfo)) {
       console.log(Object.keys(materialInfo))
-      console.log(materialInfo["Concrete"])
+      console.log(materialInfo["concrete"])
       setPlotData(getMaterialPlotData(activeMaterial, materialInfo));
     }
   }, [activeMaterial, materialInfo]);
@@ -79,7 +79,7 @@ export default function Landing() {
   useEffect(() => {
     if (!isEmpty(projectData) && !isEmpty(speckleObjects)) {
       async function getAllMaterials(project, materials) {
-        const results = await getMaterial(projectData.id);
+        const results = await getMaterial(materials, project.address);
         setMaterialInfo(results);
         console.log(results)
         return results;
@@ -88,7 +88,7 @@ export default function Landing() {
       const materialSet = Array.from(
         new Set(speckleObjects.map((d) => d.Material))
       );
-      getAllMaterials(projectData.id, materialSet);
+      getAllMaterials(projectData, materialSet);
     }
   }, [speckleObjects, projectData]);
 
@@ -98,16 +98,15 @@ export default function Landing() {
   let materialQuantities = {};
   if (!isEmpty(speckleObjects) && !isEmpty(materialInfo)) {
     const materialSet = Array.from(
-      new Set(speckleObjects.map((d) => d.Material))
+      new Set(speckleObjects.map((d) => d.Material.toString().toLowerCase()))
     );
     for (const material of materialSet) {
       const stats = materialInfo[material]
-      console.log(stats)
       const volume = speckleObjects
-        .filter((d) => d.Material === material)
+            .filter((d) => d.Material.toLowerCase() === material)
         .map((d) => +d.Volume)
         .reduce((acc, curr) => curr + acc, 0);
-      const quantCO2 = +stats[0].density * +stats[0].best_practice_value * volume
+      const quantCO2 = stats[0] ? +stats[0].density * +stats[0].best_practice_value * volume : 0.0
       const matData = {volume, quantCO2}
       materialQuantities = { ...materialQuantities, [material]: matData };
     }
@@ -150,10 +149,10 @@ export default function Landing() {
                   onChange={handleChange}
                   sx={{ width: "300px" }}
                 >
-                  <MenuItem value="Concrete">Concrete</MenuItem>
-                  <MenuItem value="Steel">Steel</MenuItem>
-                  <MenuItem value="Masonry">Masonry</MenuItem>
-                  <MenuItem value="Wood">Wood</MenuItem>
+                  <MenuItem value="concrete">Concrete</MenuItem>
+                  <MenuItem value="steel">Steel</MenuItem>
+                  <MenuItem value="cmu">Masonry</MenuItem>
+                  <MenuItem value="wood">Wood</MenuItem>
                 </Select>
               </>
             ) : (

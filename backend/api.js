@@ -151,12 +151,14 @@ const getMaterial = async (materialName, distance) => {
     hashTable[materialName] +
     "&project_id=" +
     projectID +
-    `&plant__distance__lt=${distanceRadius}%20mi` +
     "&sort_by=+plant__distance" +
     "&page_size=50";
   // Filter by reasonable concrete strength
-  if (materialName === "Concrete") {
+  if (materialName === "concrete") {
     url = url + "&concrete_compressive_strength_28d=5000%20psi";
+  }
+  if (distance) {
+    url = url + `&plant__distance__lt=${distanceRadius}%20mi` 
   }
   return await fetch(url, {
     method: "GET",
