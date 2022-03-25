@@ -31,10 +31,10 @@ function isEmpty(object) {
   return JSON.stringify(object) === "{}";
 }
 
-function getMaterialPlotData(material, allMaterials) {
+function getMaterialPlotData(materialName, materialData) {
   const plotData = {};
-  plotData.x = allMaterials[material].map((d) => d.name);
-  plotData.y = allMaterials[material].map((d) => d.best_practice_value);
+  plotData.x = materialData[materialName].map((d) => d.name);
+  plotData.y = materialData[materialName].map((d) => d.best_practice_value);
   return plotData;
 }
 
@@ -101,13 +101,7 @@ export default function Landing() {
       new Set(speckleObjects.map((d) => d.Material))
     );
     for (const material of materialSet) {
-      // TODO: fix mismatch CMU to Masonry
-      let stats;
-      if (material === "CMU") {
-        stats = materialInfo["Masonry"]
-      } else {
-        stats = materialInfo[material]
-      }
+      const stats = materialInfo[material]
       console.log(stats)
       const volume = speckleObjects
         .filter((d) => d.Material === material)
@@ -123,8 +117,8 @@ export default function Landing() {
     <Box>
       <Container maxWidth="lg">
         <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Typography variant="h2">Speckle + EC3</Typography>
+          <Grid item xs={12} sx={{paddingTop: 5}}>
+            <Typography variant="h2">Speckle 🌐 + EC3 🌳</Typography>
           </Grid>
           <Grid item xs={12} md={6}>
             <Typography variant="body1">
@@ -145,7 +139,7 @@ export default function Landing() {
             {renderPlot ? (
               <>
                 <Typography variant="h6">
-                  Closest (Geographic ){activeMaterial} GWPs
+                  Closest (Geographic) {activeMaterial} GWPs
                 </Typography>
                 <BarChart data={plotData} />
                 <Select
@@ -168,7 +162,7 @@ export default function Landing() {
           </Grid>
     <Grid item xs={12} sx={{p: 2}}>
           {!isEmpty(materialQuantities) && !isEmpty(materialInfo) ? (
-            <ul>
+            <ul style={{listStyle: "none"}}>
               {Object.keys(materialQuantities).map((material) => (
                 <li>
                   <Typography>

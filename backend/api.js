@@ -141,7 +141,7 @@ const getMaterial = async (materialName, distance) => {
     Brick: "4ec837a26a0a493786442296f4cb2730",
     Steel: "de95ab7d6ab5488bb87d20177f942d2a",
     Concrete: "b03dba1dca5b49acb1a5aa4daab546b4",
-    Masonry: "4ec837a26a0a493786442296f4cb2730",
+    CMU: "4ec837a26a0a493786442296f4cb2730",
     Wood: "e4aa9c1808ad41b6944db88e51d877ba",
   };
   let url =
