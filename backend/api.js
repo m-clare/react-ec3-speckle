@@ -142,7 +142,7 @@ const getMaterial = async (materialName, distance) => {
     steel: "de95ab7d6ab5488bb87d20177f942d2a",
     concrete: "b03dba1dca5b49acb1a5aa4daab546b4",
     cmu: "4ec837a26a0a493786442296f4cb2730",
-    wood: "e4aa9c1808ad41b6944db88e51d877ba",
+    wood: "fd14efc8874c4a55ac30d84a5612feb1",
   };
   let url =
     baseURL +
@@ -154,11 +154,12 @@ const getMaterial = async (materialName, distance) => {
     "&sort_by=+plant__distance" +
     "&page_size=50";
   // Filter by reasonable concrete strength
+  // TODO: Add option for selecting strength or encoding as part of Speckle object
   if (materialName === "concrete") {
     url = url + "&concrete_compressive_strength_28d=5000%20psi";
   }
   if (distance) {
-    url = url + `&plant__distance__lt=${distanceRadius}%20mi` 
+    url = url + `&plant__distance__lt=${distanceRadius}%20mi`;
   }
   return await fetch(url, {
     method: "GET",
@@ -177,19 +178,37 @@ const getMaterial = async (materialName, distance) => {
     })
     .then((returnedResponse) => returnedResponse.json())
     .then((rawData) => {
-      const data = rawData.map((d) => ({
-        name: d.name,
-        description: d.description,
-        best_practice_value: +d.best_practice.split(" ")[0],
-        best_practice_value_unit: d.best_practice.split(" ")[1],
-        density: +d.density.split(" ")[0],
-        density_unit: d.density.split(" ")[1],
-        gwp_z: d.gwp_z,
-        gwp_per_kg: +d.gwp_per_kg.split(" ")[0],
-        gwp_per_kg_unit: d.gwp_per_kg.split(" ")[1],
-        gwp_per_category_declared_unit: d.gwp_per_category_declared_unit,
-        plant_or_group: d.plant_or_group,
-      }));
+      const propertiesWithUnits = [
+        "mass_per_declared_unit",
+        "gwp_per_category_declared_unit",
+        "gwp_per_kg",
+        "best_practice",
+        "conservative_estimate",
+        "density",
+      ];
+      const data = rawData.map((d) => {
+        let processedData = {
+          name: d.name,
+          description: d.description,
+          declared_unit: d.declared_unit,
+          gwp_per_category_declared_unit: d.gwp_per_category_declared_unit,
+          plant_or_group: d.plant_or_group,
+        };
+        for (const property of propertiesWithUnits) {
+          if (d[property]) {
+            processedData = {
+              ...processedData,
+              [property]: {
+                value: +d[property].split(" ")[0],
+                unit: d[property].split(" ")[1],
+              },
+            };
+          }
+        }
+        return processedData;
+      });
+      // Raw data return for troubleshooting
+      // const data = rawData.map((d) => d);
       return { [materialName]: data };
     })
     .catch((error) => {

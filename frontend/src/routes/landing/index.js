@@ -34,7 +34,7 @@ function isEmpty(object) {
 function getMaterialPlotData(materialName, materialData) {
   const plotData = {};
   plotData.x = materialData[materialName].map((d) => d.name);
-  plotData.y = materialData[materialName].map((d) => d.best_practice_value);
+  plotData.y = materialData[materialName].map((d) => d.best_practice.value);
   return plotData;
 }
 
@@ -43,21 +43,13 @@ export default function Landing() {
   const [projectData, setProjectData] = useState({});
   const [speckleObjects, setSpeckleObjects] = useState({});
   const [activeMaterial, setActiveMaterial] = useState("concrete");
-  const [plotData, setPlotData] = useState({});
   const { loading, error, data } = useQuery(GET_SPECKLEOBJECTS);
 
   const handleChange = (event) => {
     setActiveMaterial(event.target.value);
   };
 
-  useEffect(() => {
-    if (!isEmpty(materialInfo)) {
-      console.log(Object.keys(materialInfo))
-      console.log(materialInfo["concrete"])
-      setPlotData(getMaterialPlotData(activeMaterial, materialInfo));
-    }
-  }, [activeMaterial, materialInfo]);
-
+  // Gets project info on initial load
   useEffect(() => {
     async function getProjAsync() {
       let data = await getProject();
@@ -67,6 +59,7 @@ export default function Landing() {
     getProjAsync();
   }, []);
 
+  // Gets speckle object info
   useEffect(() => {
     if (!loading) {
       const filteredData = data.stream.object.children.objects.map(
@@ -76,12 +69,12 @@ export default function Landing() {
     }
   }, [loading]);
 
+  // Gets materials info based on Speckle Objects and Project Data
   useEffect(() => {
     if (!isEmpty(projectData) && !isEmpty(speckleObjects)) {
       async function getAllMaterials(project, materials) {
         const results = await getMaterial(materials, project.address);
         setMaterialInfo(results);
-        console.log(results)
         return results;
       }
       // NOTE: Brick does not work, currently set to masonry (only available in beta)
@@ -92,31 +85,35 @@ export default function Landing() {
     }
   }, [speckleObjects, projectData]);
 
-  const renderPlot = !isEmpty(plotData); // boolean
-  console.log(renderPlot);
-
+  // Set dependent properties after data is loaded
+  let renderPlot = false;
+  let plotData = {};
   let materialQuantities = {};
+
   if (!isEmpty(speckleObjects) && !isEmpty(materialInfo)) {
     const materialSet = Array.from(
       new Set(speckleObjects.map((d) => d.Material.toString().toLowerCase()))
     );
     for (const material of materialSet) {
-      const stats = materialInfo[material]
+      const stats = materialInfo[material];
       const volume = speckleObjects
-            .filter((d) => d.Material.toLowerCase() === material)
+        .filter((d) => d.Material.toLowerCase() === material)
         .map((d) => +d.Volume)
         .reduce((acc, curr) => curr + acc, 0);
-      const quantCO2 = stats[0] ? +stats[0].density * +stats[0].best_practice_value * volume : 0.0
-      const matData = {volume, quantCO2}
+      const quantCO2 = stats[0].density.unit.indexOf("kg") !== -1
+        ? volume * stats[0].density.value * +stats[0].gwp_per_kg.value
+        : 0.0;
+      const matData = { volume, quantCO2 };
       materialQuantities = { ...materialQuantities, [material]: matData };
     }
+    plotData = getMaterialPlotData(activeMaterial, materialInfo);
   }
 
   return (
     <Box>
       <Container maxWidth="lg">
         <Grid container spacing={3}>
-          <Grid item xs={12} sx={{paddingTop: 5}}>
+          <Grid item xs={12} sx={{ paddingTop: 5 }}>
             <Typography variant="h2">Speckle 🌐 + EC3 🌳</Typography>
           </Grid>
           <Grid item xs={12} md={6}>
@@ -135,7 +132,7 @@ export default function Landing() {
             </Box>
           </Grid>
           <Grid item xs={12} md={6}>
-            {renderPlot ? (
+            {!isEmpty(plotData) ? (
               <>
                 <Typography variant="h6">
                   Closest (Geographic) {activeMaterial} GWPs
@@ -149,31 +146,37 @@ export default function Landing() {
                   onChange={handleChange}
                   sx={{ width: "300px" }}
                 >
-                  <MenuItem value="concrete">Concrete</MenuItem>
-                  <MenuItem value="steel">Steel</MenuItem>
-                  <MenuItem value="cmu">Masonry</MenuItem>
-                  <MenuItem value="wood">Wood</MenuItem>
+                  {" "}
+                  {Object.keys(materialInfo).map((material) => (
+                    <MenuItem value={material.toLowerCase()}>
+                      {material === "cmu" ? "CMU" : material[0].toUpperCase() + material.substring(1)}
+                    </MenuItem>
+                  ))}
+                  }
                 </Select>
               </>
             ) : (
               <Typography>Loading data...</Typography>
             )}
           </Grid>
-    <Grid item xs={12} sx={{p: 2}}>
-          {!isEmpty(materialQuantities) && !isEmpty(materialInfo) ? (
-            <ul style={{listStyle: "none"}}>
-              {Object.keys(materialQuantities).map((material) => (
-                <li>
-                  <Typography>
-                    {material}: {materialQuantities[material].volume.toFixed(2)} cubic meters - {materialQuantities[material].quantCO2.toFixed(2)} kgCO2eq 
-                  </Typography>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Typography>No material quantities available!</Typography>
-          )}
-    </Grid>
+          <Grid item xs={12} sx={{ p: 2 }}>
+            {!isEmpty(materialQuantities) && !isEmpty(materialInfo) ? (
+              <ul style={{ listStyle: "none" }}>
+                {Object.keys(materialQuantities).map((material) => (
+                  <li>
+                    <Typography>
+                      {material}:{" "}
+                      {materialQuantities[material].volume.toFixed(2)} cubic
+                      meters -{" "}
+                      {materialQuantities[material].quantCO2.toFixed(2)} kgCO2eq
+                    </Typography>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Typography>No material quantities available!</Typography>
+            )}
+          </Grid>
         </Grid>
       </Container>
     </Box>
