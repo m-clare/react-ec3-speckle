@@ -1,7 +1,6 @@
 import { React, useState, useEffect } from "react";
-import { SpeckleData } from "../../components/speckleData";
 import { BarChart } from "../../components/barChart";
-import { getOrgs, getProject, getMaterial } from "../../utils/ec3-api";
+import { getProject, getMaterial } from "../../utils/ec3-api";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Grid";
@@ -29,13 +28,6 @@ const GET_SPECKLEOBJECTS = gql`
 
 function isEmpty(object) {
   return JSON.stringify(object) === "{}";
-}
-
-function getMaterialPlotData(materialName, materialData) {
-  const plotData = {};
-  plotData.x = materialData[materialName].map((d) => d.name);
-  plotData.y = materialData[materialName].map((d) => d.best_practice.value);
-  return plotData;
 }
 
 export default function Landing() {
@@ -67,7 +59,7 @@ export default function Landing() {
       );
       setSpeckleObjects(filteredData);
     }
-  }, [loading]);
+  }, [loading, data.stream.object.children.objects]);
 
   // Gets materials info based on Speckle Objects and Project Data
   useEffect(() => {
@@ -86,8 +78,6 @@ export default function Landing() {
   }, [speckleObjects, projectData]);
 
   // Set dependent properties after data is loaded
-  let renderPlot = false;
-  let plotData = {};
   let materialQuantities = {};
 
   if (!isEmpty(speckleObjects) && !isEmpty(materialInfo)) {
@@ -100,13 +90,13 @@ export default function Landing() {
         .filter((d) => d.Material.toLowerCase() === material)
         .map((d) => +d.Volume)
         .reduce((acc, curr) => curr + acc, 0);
-      const quantCO2 = stats[0].density.unit.indexOf("kg") !== -1
-        ? volume * stats[0].density.value * +stats[0].gwp_per_kg.value
-        : 0.0;
+      const quantCO2 =
+        stats[0].density.unit.indexOf("kg") !== -1
+          ? volume * stats[0].density.value * +stats[0].gwp_per_kg.value
+          : 0.0;
       const matData = { volume, quantCO2 };
       materialQuantities = { ...materialQuantities, [material]: matData };
     }
-    plotData = getMaterialPlotData(activeMaterial, materialInfo);
   }
 
   return (
@@ -132,12 +122,18 @@ export default function Landing() {
             </Box>
           </Grid>
           <Grid item xs={12} md={6}>
-            {!isEmpty(plotData) ? (
+            {!isEmpty(materialInfo) ? (
               <>
                 <Typography variant="h6">
                   Closest (Geographic) {activeMaterial} GWPs
                 </Typography>
-                <BarChart data={plotData} />
+                <BarChart
+                  data={materialInfo[activeMaterial]}
+                  color="green"
+                  x={(d) => d.name}
+                  y={(d) => d.conservative_estimate.value}
+                  yLabel="↑ GWP kgCO2e"
+                />
                 <Select
                   labelId="select-material"
                   id="select-material"
@@ -149,7 +145,9 @@ export default function Landing() {
                   {" "}
                   {Object.keys(materialInfo).map((material) => (
                     <MenuItem value={material.toLowerCase()}>
-                      {material === "cmu" ? "CMU" : material[0].toUpperCase() + material.substring(1)}
+                      {material === "cmu"
+                        ? "CMU"
+                        : material[0].toUpperCase() + material.substring(1)}
                     </MenuItem>
                   ))}
                   }
@@ -168,7 +166,7 @@ export default function Landing() {
                       {material}:{" "}
                       {materialQuantities[material].volume.toFixed(2)} cubic
                       meters -{" "}
-                      {materialQuantities[material].quantCO2.toFixed(2)} kgCO2eq
+                      {Math.round(materialQuantities[material].quantCO2)} kgCO2eq
                     </Typography>
                   </li>
                 ))}

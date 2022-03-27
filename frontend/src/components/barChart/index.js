@@ -1,79 +1,53 @@
 import * as d3 from "d3";
-import { useRef, useEffect, useState, React } from "react";
+import { useRef, useEffect, React } from "react";
 import { isEmpty } from "lodash-es";
-
-// Copyright 2021 Observable, Inc.
-// Released under the ISC license.
-// https://observablehq.com/@d3/bar-chart
-// export function BarChart(data, {
-//   x = (d, i) => i, // given d in data, returns the (ordinal) x-value
-//   y = d => d, // given d in data, returns the (quantitative) y-value
-//   title, // given d in data, returns the title text
-//   marginTop = 20, // the top margin, in pixels
-//   marginRight = 0, // the right margin, in pixels
-//   marginBottom = 30, // the bottom margin, in pixels
-//   marginLeft = 40, // the left margin, in pixels
-//   width = 640, // the outer width of the chart, in pixels
-//   height = 400, // the outer height of the chart, in pixels
-//   xDomain, // an array of (ordinal) x-values
-//   xRange = [marginLeft, width - marginRight], // [left, right]
-//   yType = d3.scaleLinear, // y-scale type
-//   yDomain, // [ymin, ymax]
-//   yRange = [height - marginBottom, marginTop], // [bottom, top]
-//   xPadding = 0.1, // amount of x-range to reserve to separate bars
-//   yFormat, // a format specifier string for the y-axis
-//   yLabel, // a label for the y-axis
-//   color = "currentColor" // bar fill color
-// } = {}) {
 
 const getNodeById = (svg, id) => {
   if (svg.select("#" + id).empty()) {
     svg.append("g").attr("id", id);
   } else {
-    const svg = d3.select('#' + id)
+    const svg = d3.select("#" + id);
     // remove child items
-    svg.selectAll('*').remove();
+    svg.selectAll("*").remove();
   }
   return svg.select("#" + id);
 };
 
-export function BarChart({ data }) {
-  const [plotData, setPlotData] = useState({});
+// Copyright 2021 Observable, Inc.
+// Released under the ISC license.
+// https://observablehq.com/@d3/bar-chart
+export function BarChart({
+  data,
+  x = (d, i) => i, // given d in data, returns the (ordinal) x-value
+  y = (d) => d, // given d in data, returns the (quantitative) y-value
+  marginTop = 20, // the top margin, in pixels
+  marginRight = 0, // the right margin, in pixels
+  marginBottom = 30, // the bottom margin, in pixels
+  marginLeft = 40, // the left margin, in pixels
+  width = 640, // the outer width of the chart, in pixels
+  height = 400, // the outer height of the chart, in pixels
+  xDomain, // an array of (ordinal) x-values
+  xRange = [marginLeft, width - marginRight], // [left, right]
+  yType = d3.scaleLinear, // y-scale type
+  yDomain, // [ymin, ymax]
+  yRange = [height - marginBottom, marginTop], // [bottom, top]
+  xPadding = 0.1, //amount of x-range to reserve to separate bars
+  yFormat, // a format specifier string for the y-axis
+  yLabel, // a label for the y-axis
+  color = "currentColor", // bar fill color
+}) {
   const d3Container = useRef(null);
-  // default values
-  const marginTop = 20; // the top margin, in pixels
-  const marginRight = 0; // the right margin, in pixels
-  const marginBottom = 100; // the bottom margin, in pixels
-  const marginLeft = 40; // the left margin, in pixels
-  const width = 640; // the outer width of the chart, in pixels
-  const height = 500; // the outer height of the chart, in pixels
-  const xRange = [marginLeft, width - marginRight]; // [left, right]
-  const yType = d3.scaleLinear; // y-scale type
-  //   yDomain, // [ymin, ymax]
-  const yRange = [height - marginBottom, marginTop]; // [bottom, top]
-  const xPadding = 0.1; // amount of x-range to reserve to separate bars
-  //   yFormat, // a format specifier string for the y-axis
-  //   yLabel, // a label for the y-axis
-  const color = "green"; // bar fill color
-
-  useEffect(() => {
-    if (!isEmpty(data)) {
-      setPlotData(data);
-    }
-  }, [data]);
 
   useEffect(() => {
     if (!isEmpty(data) && d3Container.current) {
       const svg = d3.select(d3Container.current);
       // Compute values.
-      const X = data.x; //d3.map(data, x);
-      const Y = data.y; //d3.map(data, y);
+      const X = d3.map(data, x);
+      const Y = d3.map(data, y);
 
       // Compute default domains, and unique the x-domain.
-      // if (xDomain === undefined) xDomain = X;
-      // if (yDomain === undefined) yDomain = [0, d3.max(Y)];
-      let xDomain = X;
-      const yDomain = [0, d3.max(Y)];
+      if (xDomain === undefined) xDomain = X;
+      if (yDomain === undefined) yDomain = [0, d3.max(Y)];
 
       xDomain = new d3.InternSet(xDomain);
 
@@ -84,7 +58,7 @@ export function BarChart({ data }) {
       const xScale = d3.scaleBand(xDomain, xRange).padding(xPadding);
       const yScale = yType(yDomain, yRange);
       const xAxis = d3.axisBottom(xScale).tickSizeOuter(0);
-      const yAxis = d3.axisLeft(yScale).ticks(height / 40); //, yFormat);
+      const yAxis = d3.axisLeft(yScale).ticks(height / 40, yFormat);
 
       const axes = getNodeById(svg, "axes");
 
@@ -106,8 +80,8 @@ export function BarChart({ data }) {
             .attr("y", 10)
             .attr("fill", "currentColor")
             .attr("text-anchor", "start")
+            .text(yLabel)
         );
-      //.text(yLabel));
 
       const bars = getNodeById(svg, "bars");
 
