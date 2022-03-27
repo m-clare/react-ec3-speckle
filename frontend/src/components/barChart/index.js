@@ -29,6 +29,10 @@ import { isEmpty } from "lodash-es";
 const getNodeById = (svg, id) => {
   if (svg.select("#" + id).empty()) {
     svg.append("g").attr("id", id);
+  } else {
+    const svg = d3.select('#' + id)
+    // remove child items
+    svg.selectAll('*').remove();
   }
   return svg.select("#" + id);
 };
