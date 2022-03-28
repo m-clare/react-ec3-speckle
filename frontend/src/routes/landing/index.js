@@ -9,6 +9,7 @@ import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import MenuItem from "@mui/material/MenuItem";
+import * as d3 from "d3";
 
 import { useQuery, gql } from "@apollo/client";
 
@@ -32,32 +33,51 @@ function isEmpty(object) {
   return JSON.stringify(object) === "{}";
 }
 
+function capitalizeWords (string) {
+  const words = string.split(" ")
+  return words.map((word) => word[0].toUpperCase() + word.substring(1)).join(" ")
+}
+
 export default function Landing() {
   const [materialInfo, setMaterialInfo] = useState({});
   const [projectData, setProjectData] = useState({});
   const [speckleObjects, setSpeckleObjects] = useState({});
   const [activeMaterial, setActiveMaterial] = useState("concrete");
   const [location, setProjLocation] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [locationTotals, setLocationTotals] = useState({})
   const { loading, error, data } = useQuery(GET_SPECKLEOBJECTS);
+  const [submitted, setSubmitted] = useState(true);
 
+  async function getProjAsync() {
+    let projectData = await getProject();
+    setProjectData(projectData);
+  }
+
+  async function setProjLocationAsync() {
+    let projectData = await setLocation(location);
+    setProjectData(projectData);
+  }
+
+  async function getProjectAsync() {
+    const projectData = location !== "" ? await setLocation(location) : await getProject();
+    setProjectData(projectData)
+  }
+
+  async function getAllMaterials(project, materials) {
+    const results = await getMaterial(materials, project.address);
+    setMaterialInfo(results);
+    setSubmitted(false);
+    return results;
+  }
+
+  // TODO: Fix control flow for location update to reduce number of side effects
   // Gets project info on initial load
   useEffect(() => {
-    async function getProjAsync() {
-      let projectData = await getProject();
-      setProjectData(projectData);
-    }
     getProjAsync();
   }, []);
 
+  // Causes updates
   useEffect(() => {
-    async function setProjLocationAsync() {
-      // console.log(location);
-      let projectData = await setLocation(location);
-      // console.log(projectData);
-      setProjectData(projectData);
-      setSubmitted(false);
-    }
     if (submitted) {
       setProjLocationAsync();
     }
@@ -73,19 +93,16 @@ export default function Landing() {
     }
   }, [loading, data]);
 
+
   // Gets materials info based on Speckle Objects and Project Data
   useEffect(() => {
     if (!isEmpty(projectData) && !isEmpty(speckleObjects)) {
-      async function getAllMaterials(project, materials) {
-        const results = await getMaterial(materials, project.address);
-        setMaterialInfo(results);
-        return results;
-      }
       // NOTE: Brick does not work, currently set to masonry (only available in beta)
       const materialSet = Array.from(
         new Set(speckleObjects.map((d) => d.Material))
       );
       getAllMaterials(projectData, materialSet);
+
     }
   }, [speckleObjects, projectData]);
 
@@ -102,16 +119,20 @@ export default function Landing() {
         .filter((d) => d.Material.toLowerCase() === material)
         .map((d) => +d.Volume)
         .reduce((acc, curr) => curr + acc, 0);
+
+      const gwp_per_material = d3.mean(stats.map(
+        (d) =>
+          (d.density.value * d.gwp_per_kg.value * d.conservative_estimate.value) /
+          d.gwp_per_category_declared_unit.value
+      ));
       const quantCO2 =
         stats[0].density.unit.indexOf("kg") !== -1
-          ? volume * stats[0].density.value * +stats[0].gwp_per_kg.value
+          ? volume * gwp_per_material
           : 0.0;
       const matData = { volume, quantCO2 };
       materialQuantities = { ...materialQuantities, [material]: matData };
     }
   }
-
-  console.log(projectData.address)
 
   return (
     <Box>
@@ -165,10 +186,13 @@ export default function Landing() {
               <Button
                 variant="contained"
                 disableElevation
+                disabled={submitted}
                 size="large"
                 fullWidth
+                disabled={submitted}
                 onClick={(event) => {
-                  setSubmitted(true)}}
+                  setSubmitted(true);
+                }}
               >
                 Submit
               </Button>
@@ -178,12 +202,13 @@ export default function Landing() {
             {!isEmpty(materialInfo) && !submitted ? (
               <>
                 <Typography variant="h6">
-                  Closest (Geographic) {activeMaterial} GWPs
+                  Closest (Geographic) {capitalizeWords(activeMaterial)} 
                 </Typography>
+                <Typography variant="h6">Environmental Product Declarations (EPDs)</Typography>
                 <BarChart
                   data={materialInfo[activeMaterial]}
                   color="green"
-                  height={450}
+                  height={400}
                   x={(d, i) => i + " " + d.name}
                   y={(d) => d.gwp_per_category_declared_unit.value}
                   yLabel="↑ GWP kgCO2e"
@@ -193,6 +218,7 @@ export default function Landing() {
                   id="select-material"
                   value={activeMaterial}
                   label="Material"
+                  disabled={submitted}
                   onChange={(event) => {
                     setActiveMaterial(event.target.value);
                   }}
@@ -203,7 +229,7 @@ export default function Landing() {
                     <MenuItem value={material.toLowerCase()}>
                       {material === "cmu"
                         ? "CMU"
-                        : material[0].toUpperCase() + material.substring(1)}
+                       : capitalizeWords(material)}
                     </MenuItem>
                   ))}
                   }

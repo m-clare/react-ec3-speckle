@@ -137,6 +137,13 @@ const getMaterial = async (materialName, distance) => {
     : await getProjectID(process.env.BUILDING_NAME);
   // TODO: should be ammended to provide more granular material selection
   const distanceRadius = distance ? distance : 1000; // distance in miles
+  const acceptableUnits = {
+    concrete: "1 m3",
+    steel: "1 t",
+    wood: "1 m3",
+    cmu: "1 m3",
+    brick: "1 m3",
+  }
   const hashTable = {
     brick: "4ec837a26a0a493786442296f4cb2730",
     steel: "de95ab7d6ab5488bb87d20177f942d2a",
@@ -207,9 +214,12 @@ const getMaterial = async (materialName, distance) => {
         }
         return processedData;
       });
+      // Filtered data to only include properly declared units
+      // TODO: Generalization for mapping units... but I don't have time for this right now
+      const filteredData = data.filter((d) => d.declared_unit === acceptableUnits[materialName])
       // Raw data return for troubleshooting
       // const data = rawData.map((d) => d);
-      return { [materialName]: data };
+      return { [materialName]: filteredData };
     })
     .catch((error) => {
       console.log(error);

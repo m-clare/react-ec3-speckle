@@ -6,7 +6,6 @@ import {
   ApolloProvider,
 } from "@apollo/client";
 import {BrowserRouter, Routes, Route, Link} from "react-router-dom";
-import About from "./routes/about";
 import Landing from "./routes/landing";
 import "./App.css";
 
@@ -30,9 +29,6 @@ function Layout() {
         <ul>
           <li>
             <Link to="/">Landing</Link>
-          </li>
-          <li>
-            <Link to="/about">About</Link>
           </li>
         </ul>
       </nav>
