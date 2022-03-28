@@ -1,11 +1,13 @@
 import { React, useState, useEffect } from "react";
 import { BarChart } from "../../components/barChart";
-import { getProject, getMaterial } from "../../utils/ec3-api";
+import { getProject, getMaterial, setLocation } from "../../utils/ec3-api";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Grid";
 import Typography from "@mui/material/Typography";
 import Select from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
+import Button from "@mui/material/Button";
 import MenuItem from "@mui/material/MenuItem";
 
 import { useQuery, gql } from "@apollo/client";
@@ -35,21 +37,31 @@ export default function Landing() {
   const [projectData, setProjectData] = useState({});
   const [speckleObjects, setSpeckleObjects] = useState({});
   const [activeMaterial, setActiveMaterial] = useState("concrete");
+  const [location, setProjLocation] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const { loading, error, data } = useQuery(GET_SPECKLEOBJECTS);
-
-  const handleChange = (event) => {
-    setActiveMaterial(event.target.value);
-  };
 
   // Gets project info on initial load
   useEffect(() => {
     async function getProjAsync() {
-      let data = await getProject();
-      setProjectData(data);
-      return data;
+      let projectData = await getProject();
+      setProjectData(projectData);
     }
     getProjAsync();
   }, []);
+
+  useEffect(() => {
+    async function setProjLocationAsync() {
+      // console.log(location);
+      let projectData = await setLocation(location);
+      // console.log(projectData);
+      setProjectData(projectData);
+      setSubmitted(false);
+    }
+    if (submitted) {
+      setProjLocationAsync();
+    }
+  }, [submitted]);
 
   // Gets speckle object info
   useEffect(() => {
@@ -59,7 +71,7 @@ export default function Landing() {
       );
       setSpeckleObjects(filteredData);
     }
-  }, [loading, data.stream.object.children.objects]);
+  }, [loading, data]);
 
   // Gets materials info based on Speckle Objects and Project Data
   useEffect(() => {
@@ -99,30 +111,71 @@ export default function Landing() {
     }
   }
 
+  console.log(projectData.address)
+
   return (
     <Box>
       <Container maxWidth="lg">
-        <Grid container spacing={3}>
-          <Grid item xs={12} sx={{ paddingTop: 5 }}>
-            <Typography variant="h2">Speckle 🌐 + EC3 🌳</Typography>
+        <Grid container spacing={4}>
+          <Grid item xs={12}>
+            <Typography pt={4} variant="h2">
+              Speckle 🟦 + EC3 🌳
+            </Typography>
           </Grid>
-          <Grid item xs={12} md={6}>
-            <Typography variant="body1">
+          <Grid item xs={12}>
+            <Typography variant="h6">
               Project Name: {projectData.name}
             </Typography>
-            <Typography variant="body1">
+            <Typography variant="h6">
               Project Address: {projectData.address}
             </Typography>
-            <Box p={3}>
-              <iframe
-                src="https://speckle.xyz/embed?stream=6d6cbc1bdf&commit=a3feac7246"
-                width={"100%"}
-                height={400}
+          </Grid>
+          <Grid container item xs={12} md={6}>
+            <Grid item xs={12}>
+              <Box p={1}>
+                <iframe
+                  src="https://speckle.xyz/embed?stream=6d6cbc1bdf&commit=a3feac7246"
+                  width={"100%"}
+                  height={400}
+                />
+              </Box>
+            </Grid>
+            <Grid item xs={8} sx={{ paddingLeft: 1, paddingRight: 1 }}>
+              <TextField
+                fullWidth
+                id="address-input"
+                label="Input New Address"
+                variant="outlined"
+                onChange={(event) => {
+                  setProjLocation(event.target.value);
+                }}
               />
-            </Box>
+            </Grid>
+            <Grid
+              item
+              xs={4}
+              sx={{
+                paddingLeft: 1,
+                paddingRight: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Button
+                variant="contained"
+                disableElevation
+                size="large"
+                fullWidth
+                onClick={(event) => {
+                  setSubmitted(true)}}
+              >
+                Submit
+              </Button>
+            </Grid>
           </Grid>
           <Grid item xs={12} md={6}>
-            {!isEmpty(materialInfo) ? (
+            {!isEmpty(materialInfo) && !submitted ? (
               <>
                 <Typography variant="h6">
                   Closest (Geographic) {activeMaterial} GWPs
@@ -130,8 +183,9 @@ export default function Landing() {
                 <BarChart
                   data={materialInfo[activeMaterial]}
                   color="green"
-                  x={(d) => d.name}
-                  y={(d) => d.conservative_estimate.value}
+                  height={450}
+                  x={(d, i) => i + " " + d.name}
+                  y={(d) => d.gwp_per_category_declared_unit.value}
                   yLabel="↑ GWP kgCO2e"
                 />
                 <Select
@@ -139,7 +193,9 @@ export default function Landing() {
                   id="select-material"
                   value={activeMaterial}
                   label="Material"
-                  onChange={handleChange}
+                  onChange={(event) => {
+                    setActiveMaterial(event.target.value);
+                  }}
                   sx={{ width: "300px" }}
                 >
                   {" "}
@@ -166,7 +222,8 @@ export default function Landing() {
                       {material}:{" "}
                       {materialQuantities[material].volume.toFixed(2)} cubic
                       meters -{" "}
-                      {Math.round(materialQuantities[material].quantCO2)} kgCO2eq
+                      {Math.round(materialQuantities[material].quantCO2)}{" "}
+                      kgCO2eq
                     </Typography>
                   </li>
                 ))}

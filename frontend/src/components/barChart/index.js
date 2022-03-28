@@ -93,7 +93,8 @@ export function BarChart({
         .attr("x", (i) => xScale(X[i]))
         .attr("y", (i) => yScale(Y[i]))
         .attr("height", (i) => yScale(0) - yScale(Y[i]))
-        .attr("width", xScale.bandwidth());
+        .attr("width", xScale.bandwidth())
+        .attr("opacity", 0.8)
 
       const xAxisNode = getNodeById(svg, "xAxisNode");
 
@@ -102,9 +103,9 @@ export function BarChart({
         .call(xAxis)
         .selectAll("text")
         .attr("y", 0)
-        .attr("x", 9)
-        .attr("dy", ".35em")
-        .attr("transform", "rotate(90)")
+        .attr("x", 5)
+        .attr("dy", "0.28em")
+        .attr("transform", "rotate(-90)")
         .style("text-anchor", "start");
     }
   }, [data]);
