@@ -151,6 +151,13 @@ const getMaterial = async (materialName, distance) => {
     cmu: "4ec837a26a0a493786442296f4cb2730",
     wood: "fd14efc8874c4a55ac30d84a5612feb1",
   };
+  const categoryUnit = {
+    brick: "1 m³", 
+    steel: "1 ton",
+    concrete: "1 m³", 
+    cmu: "1 m³",
+    wood: "1 m³",
+  }
   let url =
     baseURL +
     "/materials?" +
@@ -219,7 +226,7 @@ const getMaterial = async (materialName, distance) => {
       const filteredData = data.filter((d) => d.declared_unit === acceptableUnits[materialName])
       // Raw data return for troubleshooting
       // const data = rawData.map((d) => d);
-      return { [materialName]: filteredData };
+      return { [materialName]: filteredData};
     })
     .catch((error) => {
       console.log(error);
