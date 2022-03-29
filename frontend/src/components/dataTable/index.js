@@ -4,7 +4,7 @@ import Paper from "@mui/material/Paper";
 
 export function DataTable({rows, columns}) {
   return (
-    <div style={{height: 420, width: '70%', margin: '0 auto'}}>
+    <div style={{height: 430, width: '70%', margin: '0 auto'}}>
         <DataGrid
           rows={rows}
           columns={columns}
