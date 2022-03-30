@@ -1,0 +1,41 @@
+version: '3.9'
+
+services:
+
+  redis:
+    image: redis:bullseye
+    container_name: cache
+    command: redis-server --maxmemory 100mb --maxmemory-policy allkeys-lru
+    ports:
+      - 6379:6379
+    volumes:
+      - redis-data:/data
+
+  express:
+    build: ./backend
+    container_name: express
+    command: npm start
+    volumes:
+      - ./backend/:/usr/src/app
+    ports:
+      - 3001:3001
+    env_file:
+      - ./backend/.env
+
+  react-app:
+    build: ./frontend
+    container_name: react-app
+    command: npm start
+    volumes:
+      - ./frontend/:/usr/src/app
+    ports:
+      - 3000:3000
+    env_file:
+      - ./frontend/.env
+
+volumes:
+  redis-data:
+
+networks:
+  default:
+    name: ec3-speckle
