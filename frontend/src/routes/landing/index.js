@@ -194,7 +194,8 @@ export default function Landing() {
         )
         .toFixed(2);
       const gwpUnit = stats[0].gwp_per_category_declared_unit.unit;
-      const avgDensity = d3.mean(stats.map((d) => d.density.value)).toFixed(2);
+      // get raw density
+      const avgDensity = d3.mean(stats.filter(d => d.density !== undefined).map(d => d.density.value.toFixed(2)))
       let densityUnit = stats[0].density.unit;
       // Fix density unit as otherwise it looks bizarre (kg is often returned from EC3 API)
       if (densityUnit === "kg") {

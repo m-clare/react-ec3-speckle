@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const baseURL = `https://etl-api.cqd.io/api`;
+const baseURL = `https://buildingtransparency.org/api`;
 
 // EC3 username and password must be provided at a minimum
 const EC3_username = process.env.EC3_USERNAME;
