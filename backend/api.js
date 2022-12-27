@@ -5,10 +5,16 @@ dotenv.config();
 
 const baseURL = `https://buildingtransparency.org/api`;
 
-// EC3 username and password must be provided at a minimum
-const EC3_username = process.env.EC3_USERNAME;
-const EC3_password = process.env.EC3_PASSWORD;
+const getVerifiedProperties = (object) => {
+  for (const key of Object.keys(object)) {
+    if (object[key] === null) {
+      return false;
+    }
+  }
+  return true;
+};
 
+// NOTE (MCW): Fix to new auth method for EC3
 const getBearerToken = (username, password) => {
   return fetch(baseURL + "/rest-auth/login", {
     method: "POST",
@@ -130,6 +136,22 @@ const changeProjectLocation = async (locationString) => {
     });
 };
 
+const propertiesWithUnits = [
+  "gwp_per_category_declared_unit",
+  "declared_unit",
+  "gwp_per_kg",
+  "density",
+  "conservative_estimate",
+];
+
+const acceptableUnits = {
+  concrete: "1 m3",
+  steel: "1 t",
+  wood: "1 m3",
+  cmu: "1 m3",
+  brick: "1 m3",
+};
+
 const getMaterial = async (materialName, distance) => {
   const headers = await getHeaders();
   const projectID = process.env.BUILDING_ID
@@ -137,27 +159,13 @@ const getMaterial = async (materialName, distance) => {
     : await getProjectID(process.env.BUILDING_NAME);
   // TODO: should be ammended to provide more granular material selection
   const distanceRadius = distance ? distance : 1000; // distance in miles
-  const acceptableUnits = {
-    concrete: "1 m3",
-    steel: "1 t",
-    wood: "1 m3",
-    cmu: "1 m3",
-    brick: "1 m3",
-  }
   const hashTable = {
-    brick: "4ec837a26a0a493786442296f4cb2730",
-    steel: "de95ab7d6ab5488bb87d20177f942d2a",
+    steel: "db641aa0dbc34d6096547da02bf73f3a",
     concrete: "b03dba1dca5b49acb1a5aa4daab546b4",
     cmu: "4ec837a26a0a493786442296f4cb2730",
+    brick: "4ec837a26a0a493786442296f4cb2730",
     wood: "fd14efc8874c4a55ac30d84a5612feb1",
   };
-  const categoryUnit = {
-    brick: "1 m³", 
-    steel: "1 ton",
-    concrete: "1 m³", 
-    cmu: "1 m³",
-    wood: "1 m³",
-  }
   let url =
     baseURL +
     "/materials?" +
@@ -168,7 +176,8 @@ const getMaterial = async (materialName, distance) => {
     "&sort_by=+plant__distance" +
     "&page_size=50";
   // Filter by reasonable concrete strength
-  // TODO: Add option for selecting strength or encoding as part of Speckle object
+  // TODO: Add option for selecting strength or
+  // encoding as part of Speckle object
   if (materialName === "concrete") {
     url = url + "&concrete_compressive_strength_28d=5000%20psi";
   }
@@ -192,41 +201,41 @@ const getMaterial = async (materialName, distance) => {
     })
     .then((returnedResponse) => returnedResponse.json())
     .then((rawData) => {
-      const propertiesWithUnits = [
-        "mass_per_declared_unit",
-        "gwp_per_category_declared_unit",
-        "gwp_per_kg",
-        "best_practice",
-        "conservative_estimate",
-        "density",
-      ];
-      const data = rawData.map((d) => {
-        let processedData = {
-          name: d.name,
-          description: d.description,
-          declared_unit: d.declared_unit,
-          gwp_per_category_declared_unit: d.gwp_per_category_declared_unit,
-          plant_or_group: d.plant_or_group,
-        };
-        for (const property of propertiesWithUnits) {
-          if (d[property]) {
-            processedData = {
-              ...processedData,
-              [property]: {
-                value: +d[property].split(" ")[0],
-                unit: d[property].split(" ")[1],
-              },
-            };
+      const data = rawData
+        .map((d) => {
+          // filter to smaller number of fields
+          let processedData = {
+            name: d.name,
+            description: d.description,
+            declared_unit: d.declared_unit,
+            gwp_per_kg: d.gwp_per_kg,
+            gwp_per_category_declared_unit: d.gwp_per_category_declared_unit,
+            density: d.density,
+            plant_or_group: d.plant_or_group,
+            conservative_estimate: d.conservative_estimate,
+          };
+          // Filtered data to only include properly declared units
+          // TODO: Generalization for mapping units...
+          // but I don't have time for this right now
+          if (
+            getVerifiedProperties(processedData) &&
+            processedData.declared_unit === acceptableUnits[materialName]
+          ) {
+            for (const property of propertiesWithUnits) {
+              const splitData = processedData[property].split(" ");
+              processedData = {
+                ...processedData,
+                [property]: {
+                  value: +splitData[0] ?? 0.0,
+                  unit: splitData[1] ?? "",
+                },
+              };
+            }
+            return processedData;
           }
-        }
-        return processedData;
-      });
-      // Filtered data to only include properly declared units
-      // TODO: Generalization for mapping units... but I don't have time for this right now
-      const filteredData = data.filter((d) => d.declared_unit === acceptableUnits[materialName])
-      // Raw data return for troubleshooting
-      // const data = rawData.map((d) => d);
-      return { [materialName]: filteredData};
+        })
+        .filter((d) => d !== undefined && !d.name.includes("EUROSPAN"));
+      return { [materialName]: data };
     })
     .catch((error) => {
       console.log(error);

@@ -1,6 +1,6 @@
 import { React, useState, useEffect } from "react";
 
-// Custom Component Imports 
+// Custom Component Imports
 import { BarChart } from "../../components/barChart";
 import { DataTable } from "../../components/dataTable";
 import { getProject, getMaterial, setLocation } from "../../utils/ec3-api";
@@ -8,7 +8,7 @@ import { getProject, getMaterial, setLocation } from "../../utils/ec3-api";
 // MUI Imports
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress"
+import CircularProgress from "@mui/material/CircularProgress";
 import Container from "@mui/material/Container";
 import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
@@ -53,12 +53,12 @@ function capitalizeWords(string) {
 
 // TODO: Get this from backend when category is retrieved
 const categoryUnit = {
-  brick: "1 m³", 
+  brick: "1 m³",
   steel: "1 ton",
-  concrete: "1 m³", 
+  concrete: "1 m³",
   cmu: "1 m³",
   wood: "1 m³",
-}
+};
 
 export default function Landing() {
   const [materialInfo, setMaterialInfo] = useState({});
@@ -194,12 +194,15 @@ export default function Landing() {
         )
         .toFixed(2);
       const gwpUnit = stats[0].gwp_per_category_declared_unit.unit;
-      // get raw density
-      const avgDensity = d3.mean(stats.filter(d => d.density !== undefined).map(d => d.density.value.toFixed(2)))
+      const avgDensity = d3.mean(
+        stats
+          .map((d) => d.density?.value.toFixed(2))
+          .filter((d) => d !== undefined)
+      );
       let densityUnit = stats[0].density.unit;
       // Fix density unit as otherwise it looks bizarre (kg is often returned from EC3 API)
       if (densityUnit === "kg") {
-        densityUnit = "kg/m³"
+        densityUnit = "kg/m³";
       }
       const totalGWP =
         stats[0].density.unit.indexOf("kg") !== -1
@@ -219,8 +222,13 @@ export default function Landing() {
       ];
       count += 1;
     }
-    materialsTotalGWP = rows.map((d) => +d.totalGWP.split(" ")[0]).reduce((curr, acc) => curr + acc, 0.0)
-    rows = [...rows, {id: count, name: "Total", totalGWP: materialsTotalGWP + " kgCO2e"}]
+    materialsTotalGWP = rows
+      .map((d) => +d.totalGWP.split(" ")[0])
+      .reduce((curr, acc) => curr + acc, 0.0);
+    rows = [
+      ...rows,
+      { id: count, name: "Total", totalGWP: materialsTotalGWP + " kgCO2e" },
+    ];
     materialQuantities = { ...materialQuantities, rows };
   }
 
@@ -306,34 +314,39 @@ export default function Landing() {
                   height={400}
                   x={(d, i) => i + " " + d.name}
                   y={(d) => d.gwp_per_category_declared_unit.value}
-                  yLabel={"↑ GWP kgCO2e per EC3 category declared unit - " + categoryUnit[activeMaterial]}
-                />
-                <FormControl >
-                <InputLabel id="select-material-label">Selected Material</InputLabel>
-                <Select
-                  labelId="select-material-label"
-                  id="select-material"
-                  value={activeMaterial}
-                  label="Selected Material"
-                  disabled={submitted}
-                  onChange={(event) => {
-                    setActiveMaterial(event.target.value);
-                  }}
-                  sx={{ width: "300px" }}
-                >
-                  {" "}
-                  {Object.keys(materialInfo).map((material) => (
-                    <MenuItem value={material.toLowerCase()}>
-                      {material === "cmu" ? "CMU" : capitalizeWords(material)}
-                    </MenuItem>
-                  ))}
+                  yLabel={
+                    "↑ GWP kgCO2e per EC3 category declared unit - " +
+                    categoryUnit[activeMaterial]
                   }
-                </Select>
+                />
+                <FormControl>
+                  <InputLabel id="select-material-label">
+                    Selected Material
+                  </InputLabel>
+                  <Select
+                    labelId="select-material-label"
+                    id="select-material"
+                    value={activeMaterial}
+                    label="Selected Material"
+                    disabled={submitted}
+                    onChange={(event) => {
+                      setActiveMaterial(event.target.value);
+                    }}
+                    sx={{ width: "300px" }}
+                  >
+                    {" "}
+                    {Object.keys(materialInfo).map((material) => (
+                      <MenuItem value={material.toLowerCase()}>
+                        {material === "cmu" ? "CMU" : capitalizeWords(material)}
+                      </MenuItem>
+                    ))}
+                    }
+                  </Select>
                 </FormControl>
               </>
             ) : (
-              <> 
-              <Typography>Loading data...</Typography>
+              <>
+                <Typography>Loading data...</Typography>
                 <Box p={6}>
                   <CircularProgress />
                 </Box>
@@ -341,7 +354,7 @@ export default function Landing() {
             )}
           </Grid>
           <Grid item xs={12} sx={{ p: 2 }}>
-            {materialQuantities.rows  && !submitted ? (
+            {materialQuantities.rows && !submitted ? (
               <>
                 <Typography variant="h6" pb={2}>
                   Conservative Estimate (Average) Global Warming Potential (GWP)
@@ -351,9 +364,7 @@ export default function Landing() {
                   columns={materialQuantities.columns}
                 />
               </>
-            ) : (
-              null
-            )}
+            ) : null}
           </Grid>
         </Grid>
       </Container>
