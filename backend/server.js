@@ -40,7 +40,7 @@ async function returnMaterials(req, res) {
   // query string *should* contain a location, otherwise caching will not properly reflect location
   let project = await getProject();
   // Check address and update if needed (rough substring match used)
-  const lowercaseAddress = project.address.toString().toLowerCase();
+  const lowercaseAddress = project?.address.toString().toLowerCase() ?? "";
   if (lowercaseAddress.indexOf(dictionary["location"]) === -1) {
     project = await changeProjectLocation(dictionary["location"]);
   }
