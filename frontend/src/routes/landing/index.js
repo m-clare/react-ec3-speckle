@@ -24,8 +24,8 @@ import { useQuery, gql } from "@apollo/client";
 
 const GET_SPECKLEOBJECTS = gql`
   query {
-    project(id: "6d6cbc1bdf") {
-      object(id: "ab1a4d9d2c58985b94648a4b105c011e") {
+    project(id: ${process.env.REACT_APP_PROJECT_ID}) {
+      object(id: ${process.env.REACT_APP_OBJECT_ID}) {
         children(select: ["Volume", "Name", "Material"]) {
           totalCount
           objects {
