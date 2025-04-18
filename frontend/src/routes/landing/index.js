@@ -11,7 +11,6 @@ import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Container from "@mui/material/Container";
 import FormControl from "@mui/material/FormControl";
-import FormHelperText from "@mui/material/FormHelperText";
 import Grid from "@mui/material/Grid";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
@@ -25,7 +24,7 @@ import { useQuery, gql } from "@apollo/client";
 
 const GET_SPECKLEOBJECTS = gql`
   query {
-    stream(id: "6d6cbc1bdf") {
+    project(id: "6d6cbc1bdf") {
       object(id: "ab1a4d9d2c58985b94648a4b105c011e") {
         children(select: ["Volume", "Name", "Material"]) {
           totalCount
@@ -65,33 +64,9 @@ export default function Landing() {
   const [projectData, setProjectData] = useState({});
   const [speckleObjects, setSpeckleObjects] = useState({});
   const [activeMaterial, setActiveMaterial] = useState("concrete");
-  const [location, setProjLocation] = useState("");
-  const { loading, error, data } = useQuery(GET_SPECKLEOBJECTS);
-  const [submitted, setSubmitted] = useState(true);
-
-  // Async functions for retrieving data and setting in component State
-  async function getProjAsync() {
-    let projectData = await getProject();
-    setProjectData(projectData);
-  }
-
-  async function setProjLocationAsync() {
-    let projectData = await setLocation(location);
-    setProjectData(projectData);
-  }
-
-  async function getProjectAsync() {
-    const projectData =
-      location !== "" ? await setLocation(location) : await getProject();
-    setProjectData(projectData);
-  }
-
-  async function getAllMaterials(project, materials) {
-    const results = await getMaterial(materials, project.address);
-    setMaterialInfo(results);
-    setSubmitted(false);
-    return results;
-  }
+  const [newLocation, setNewLocation] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const { loading, data } = useQuery(GET_SPECKLEOBJECTS);
 
   // TODO: Fix control flow for location update
   // to reduce number of side effects required here
@@ -99,20 +74,29 @@ export default function Landing() {
 
   // Gets project info on initial load
   useEffect(() => {
-    getProjAsync();
+    async function initializeProject() {
+      let projectData = (await getProject()) ?? {};
+      setProjectData(projectData);
+    }
+    initializeProject();
   }, []);
 
   // Triggers material fetch update because projectData gets updated
   useEffect(() => {
-    if (submitted) {
-      setProjLocationAsync();
+    if (submitted && newLocation) {
+      async function updateProjectLocationData() {
+        const updatedProjectData = await setLocation(newLocation);
+        setProjectData(updatedProjectData);
+        setSubmitted(false);
+      }
+      updateProjectLocationData();
     }
-  }, [submitted]);
+  }, [submitted, newLocation]);
 
   // Loads speckle object info into state (usually just once)
   useEffect(() => {
-    if (!loading) {
-      const filteredData = data.stream.object.children.objects.map(
+    if (!loading && data?.project?.object?.children?.objects) {
+      const filteredData = data.project.object.children.objects.map(
         (object) => object.data
       );
       setSpeckleObjects(filteredData);
@@ -123,12 +107,21 @@ export default function Landing() {
   useEffect(() => {
     if (!isEmpty(projectData) && !isEmpty(speckleObjects)) {
       // NOTE: Brick does not work, currently set to masonry (only available in beta)
-      const materialSet = Array.from(
-        new Set(speckleObjects.map((d) => d.Material))
-      );
-      getAllMaterials(projectData, materialSet);
+      async function fetchMaterials() {
+        const materialSet = Array.from(
+          new Set(speckleObjects.map((d) => d.Material))
+        );
+        const results =
+          (await getMaterial(materialSet, projectData.address)) ?? {};
+        setMaterialInfo(results);
+      }
+      fetchMaterials();
     }
   }, [speckleObjects, projectData]);
+
+  const handleLocationSubmit = () => {
+    setSubmitted(true);
+  };
 
   // Set dependent properties after data is loaded (derived properties)
   let materialQuantities = {
@@ -178,49 +171,54 @@ export default function Landing() {
     let count = 1;
     let materialsTotalGWP = 0;
     for (const material of materialSet) {
-      const stats = materialInfo[material];
-      const volume = speckleObjects
-        .filter((d) => d.Material.toLowerCase() === material)
-        .map((d) => +d.Volume)
-        .reduce((acc, curr) => curr + acc, 0)
-        .toFixed(2);
-      const avgGWP = d3
-        .mean(
-          stats.map(
-            (d) =>
-              (d.gwp_per_kg.value * d.conservative_estimate.value) /
-              d.gwp_per_category_declared_unit.value
+      if (
+        materialInfo[material] !== undefined &&
+        materialInfo[material].length > 0
+      ) {
+        const stats = materialInfo[material];
+        const volume = speckleObjects
+          .filter((d) => d.Material.toLowerCase() === material)
+          .map((d) => +d.Volume)
+          .reduce((acc, curr) => curr + acc, 0)
+          .toFixed(2);
+        const avgGWP = d3
+          .mean(
+            stats.map(
+              (d) =>
+                (d.gwp_per_kg.value * d.conservative_estimate.value) /
+                d.gwp_per_category_declared_unit.value
+            )
           )
-        )
-        .toFixed(2);
-      const gwpUnit = stats[0].gwp_per_category_declared_unit.unit;
-      const avgDensity = d3.mean(
-        stats
-          .map((d) => d.density?.value.toFixed(2))
-          .filter((d) => d !== undefined)
-      );
-      let densityUnit = stats[0].density.unit;
-      // Fix density unit as otherwise it looks bizarre (kg is often returned from EC3 API)
-      if (densityUnit === "kg") {
-        densityUnit = "kg/m³";
-      }
-      const totalGWP =
-        stats[0].density.unit.indexOf("kg") !== -1
-          ? (volume * avgDensity * avgGWP).toFixed(0)
-          : 0.0;
+          .toFixed(2);
+        const gwpUnit = stats[0].gwp_per_category_declared_unit.unit;
+        const avgDensity = d3.mean(
+          stats
+            .map((d) => d.density?.value.toFixed(2))
+            .filter((d) => d !== undefined)
+        );
+        let densityUnit = stats[0].density.unit;
+        // Fix density unit as otherwise it looks bizarre (kg is often returned from EC3 API)
+        if (densityUnit === "kg") {
+          densityUnit = "kg/m³";
+        }
+        const totalGWP =
+          stats[0].density.unit.indexOf("kg") !== -1
+            ? (volume * avgDensity * avgGWP).toFixed(0)
+            : 0.0;
 
-      rows = [
-        ...rows,
-        {
-          id: count,
-          name: capitalizeWords(material),
-          volume: volume.toString() + " m³",
-          avgDensity: avgDensity + " " + densityUnit,
-          avgGWP: avgGWP + " " + gwpUnit,
-          totalGWP: totalGWP + " kgCO2e",
-        },
-      ];
-      count += 1;
+        rows = [
+          ...rows,
+          {
+            id: count,
+            name: capitalizeWords(material),
+            volume: volume.toString() + " m³",
+            avgDensity: avgDensity + " " + densityUnit,
+            avgGWP: avgGWP + " " + gwpUnit,
+            totalGWP: totalGWP + " kgCO2e",
+          },
+        ];
+        count += 1;
+      }
     }
     materialsTotalGWP = rows
       .map((d) => +d.totalGWP.split(" ")[0])
@@ -229,6 +227,7 @@ export default function Landing() {
       ...rows,
       { id: count, name: "Total", totalGWP: materialsTotalGWP + " kgCO2e" },
     ];
+
     materialQuantities = { ...materialQuantities, rows };
   }
 
@@ -243,20 +242,22 @@ export default function Landing() {
           </Grid>
           <Grid item xs={12}>
             <Typography variant="h5">
-              Project Name: {projectData.name}
+              Project Name: {projectData?.name}
             </Typography>
             <Typography variant="h5">
-              Project Address: {projectData.address}
+              Project Address: {projectData?.address}
             </Typography>
           </Grid>
           <Grid container item xs={12} md={6}>
             <Grid item xs={12}>
               <Box p={1}>
                 <iframe
-                  src="https://speckle.xyz/embed?stream=6d6cbc1bdf&commit=a3feac7246"
-                  width={"100%"}
-                  height={400}
-                />
+                  title="Speckle"
+                  src="https://app.speckle.systems/projects/6d6cbc1bdf/models/055316fee9#embed=%7B%22isEnabled%22%3Atrue%2C%22isTransparent%22%3Atrue%7D"
+                  width="100%"
+                  height="400"
+                  frameBorder="0"
+                ></iframe>
               </Box>
             </Grid>
             <Grid item xs={8} sx={{ paddingLeft: 1, paddingRight: 1 }}>
@@ -268,7 +269,7 @@ export default function Landing() {
                 helperText="Input address (i.e. City + State or Zip Code)"
                 disabled={submitted}
                 onChange={(event) => {
-                  setProjLocation(event.target.value);
+                  setNewLocation(event.target.value);
                 }}
               />
             </Grid>
@@ -291,9 +292,7 @@ export default function Landing() {
                 size="large"
                 fullWidth
                 disabled={submitted}
-                onClick={(event) => {
-                  setSubmitted(true);
-                }}
+                onClick={handleLocationSubmit}
               >
                 Submit
               </Button>
@@ -336,7 +335,10 @@ export default function Landing() {
                   >
                     {" "}
                     {Object.keys(materialInfo).map((material) => (
-                      <MenuItem value={material.toLowerCase()}>
+                      <MenuItem
+                        value={material.toLowerCase()}
+                        key={material.toLowerCase()}
+                      >
                         {material === "cmu" ? "CMU" : capitalizeWords(material)}
                       </MenuItem>
                     ))}

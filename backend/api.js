@@ -35,7 +35,7 @@ const getBearerToken = (username, password) => {
     .then((returnedResponse) => returnedResponse.json())
     .then((responseJson) => responseJson.key) // return only key from object
     .catch((error) => {
-      console.log(error);
+      console.error(error);
     });
 };
 
@@ -73,7 +73,7 @@ const getProjectID = async (projectName) => {
       return responseJSON[0].id;
     })
     .catch((error) => {
-      console.log(error);
+      console.error(error);
     });
 };
 
@@ -103,7 +103,7 @@ const getProject = async () => {
       return returnedResponse.json();
     })
     .catch((error) => {
-      console.log(error);
+      console.error(error);
     });
 };
 
@@ -111,7 +111,7 @@ const changeProjectLocation = async (locationString) => {
   const headers = await getHeaders();
   const projectInfo = await getProject();
   const location = decodeURI(locationString);
-  const body = JSON.stringify({ name: projectInfo.name, address: location });
+  const body = JSON.stringify({ name: projectInfo?.name, address: location });
   return await fetch(baseURL + "/projects/" + projectInfo.id, {
     method: "PUT",
     headers: headers,
@@ -132,7 +132,7 @@ const changeProjectLocation = async (locationString) => {
       return returnedResponse.json();
     })
     .catch((error) => {
-      console.log(error);
+      console.error(error);
     });
 };
 
@@ -238,7 +238,7 @@ const getMaterial = async (materialName, distance) => {
       return { [materialName]: data };
     })
     .catch((error) => {
-      console.log(error);
+      console.error(error);
     });
 };
 
